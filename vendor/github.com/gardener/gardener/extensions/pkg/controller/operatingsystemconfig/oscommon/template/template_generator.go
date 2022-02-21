@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"path"
+	"strings"
 	"text/template"
 
 	"github.com/gardener/gardener/extensions/pkg/controller/operatingsystemconfig/oscommon/generator"
@@ -168,6 +169,38 @@ func NewTemplate(name string) *template.Template {
 	return template.New(name).Funcs(template.FuncMap{
 		"isContainerDEnabled": func(cri *extensionsv1alpha1.CRIConfig) bool {
 			return cri != nil && cri.Name == extensionsv1alpha1.CRINameContainerD
+		},
+		"containerdRegistryMirrors": func(cri *extensionsv1alpha1.CRIConfig, mode string) string {
+			if cri == nil || cri.Name != extensionsv1alpha1.CRINameContainerD {
+				return ""
+			}
+			Header := "#-----registry-mirrors----"
+			switch mode {
+			case "header":
+				return Header
+			case "full":
+				if cri.Mirrors == nil {
+					return ""
+				}
+				sb := strings.Builder{}
+				sb.WriteString("\n")
+				sb.WriteString(Header)
+				sb.WriteString("\n")
+				for _, mirror := range cri.Mirrors {
+					sb.WriteString(fmt.Sprintf("  [plugins.\"io.containerd.grpc.v1.cri\".registry.mirrors.%q]\n", mirror.Registry))
+					sb.WriteString("    endpoint = [")
+					for j, ep := range mirror.Endpoints {
+						if j > 0 {
+							sb.WriteString(",")
+						}
+						sb.WriteString(fmt.Sprintf("%q", ep))
+					}
+					sb.WriteString("]\n")
+				}
+				return sb.String()
+			default:
+				return fmt.Sprintf("unknown mode: %q", mode)
+			}
 		},
 	})
 }

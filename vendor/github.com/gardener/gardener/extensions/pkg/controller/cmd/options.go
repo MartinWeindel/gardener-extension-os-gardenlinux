@@ -59,6 +59,9 @@ const (
 
 	// DisableFlag is the name of the command line flag to disable individual controllers.
 	DisableFlag = "disable-controllers"
+
+	// GardenerVersionFlag is the name of the command line flag containing the Gardener version.
+	GardenerVersionFlag = "gardener-version"
 )
 
 // LeaderElectionNameID returns a leader election ID for the given name.
@@ -150,7 +153,7 @@ func (b *OptionAggregator) Complete() error {
 type ManagerOptions struct {
 	// LeaderElection is whether leader election is turned on or not.
 	LeaderElection bool
-	// LeaderElectionResourceLock is the resource type used for leader election (defaults to `configmapsleases`).
+	// LeaderElectionResourceLock is the resource type used for leader election (defaults to `leases`).
 	//
 	// When changing the default resource lock, please make sure to migrate via multilocks to
 	// avoid situations where multiple running instances of your controller have each acquired leadership
@@ -182,11 +185,8 @@ type ManagerOptions struct {
 func (m *ManagerOptions) AddFlags(fs *pflag.FlagSet) {
 	defaultLeaderElectionResourceLock := m.LeaderElectionResourceLock
 	if defaultLeaderElectionResourceLock == "" {
-		// explicitly default to configmapleases if no default is specified for migration purposes
-		// same as in controller-runtime, see
-		// https://github.com/kubernetes-sigs/controller-runtime/blob/a763c9a36c6f18660799384c9765348942bda53a/pkg/leaderelection/leader_election.go#L59-L64
-		// we might consider changing this default after many releases
-		defaultLeaderElectionResourceLock = resourcelock.ConfigMapsLeasesResourceLock
+		// explicitly default to leases if no default is specified
+		defaultLeaderElectionResourceLock = resourcelock.LeasesResourceLock
 	}
 
 	fs.BoolVar(&m.LeaderElection, LeaderElectionFlag, m.LeaderElection, "Whether to use leader election or not when running this controller manager.")
@@ -425,4 +425,34 @@ func (d *SwitchOptions) Completed() *SwitchConfig {
 // SwitchConfig is the completed configuration of SwitchOptions.
 type SwitchConfig struct {
 	AddToManager func(manager.Manager) error
+}
+
+// GeneralOptions are command line options that can be set for general configuration.
+type GeneralOptions struct {
+	// GardenerVersion string
+	GardenerVersion string
+
+	config *GeneralConfig
+}
+
+// GeneralConfig is a completed general configuration.
+type GeneralConfig struct {
+	// GardenerVersion string
+	GardenerVersion string
+}
+
+// Complete implements Complete.
+func (r *GeneralOptions) Complete() error {
+	r.config = &GeneralConfig{r.GardenerVersion}
+	return nil
+}
+
+// Completed returns the completed GeneralConfig. Only call this if `Complete` was successful.
+func (r *GeneralOptions) Completed() *GeneralConfig {
+	return r.config
+}
+
+// AddFlags implements Flagger.AddFlags.
+func (r *GeneralOptions) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&r.GardenerVersion, GardenerVersionFlag, "", "Version of the gardenlet.")
 }

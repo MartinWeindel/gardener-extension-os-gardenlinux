@@ -16,8 +16,8 @@ package operatingsystemconfig
 
 import (
 	extensionspredicate "github.com/gardener/gardener/extensions/pkg/predicate"
-
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
+
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -52,25 +52,14 @@ type AddArgs struct {
 // Add adds an operatingsystemconfig controller to the given manager using the given AddArgs.
 func Add(mgr manager.Manager, args AddArgs) error {
 	args.ControllerOptions.Reconciler = NewReconciler(args.Actuator)
+	args.ControllerOptions.RecoverPanic = true
 	predicates := extensionspredicate.AddTypePredicate(args.Predicates, args.Types...)
 	return add(mgr, args.ControllerOptions, predicates)
 }
 
 // DefaultPredicates returns the default predicates for an operatingsystemconfig reconciler.
 func DefaultPredicates(ignoreOperationAnnotation bool) []predicate.Predicate {
-	if ignoreOperationAnnotation {
-		return []predicate.Predicate{
-			predicate.GenerationChangedPredicate{},
-		}
-	}
-
-	return []predicate.Predicate{
-		predicate.Or(
-			extensionspredicate.HasOperationAnnotation(),
-			extensionspredicate.LastOperationNotSuccessful(),
-			extensionspredicate.IsDeleting(),
-		),
-	}
+	return extensionspredicate.DefaultControllerPredicates(ignoreOperationAnnotation, extensionspredicate.ShootNotFailedPredicate())
 }
 
 func add(mgr manager.Manager, options controller.Options, predicates []predicate.Predicate) error {

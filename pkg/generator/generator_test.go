@@ -21,7 +21,7 @@ import (
 	commongen "github.com/gardener/gardener/extensions/pkg/controller/operatingsystemconfig/oscommon/generator"
 	"github.com/gardener/gardener/extensions/pkg/controller/operatingsystemconfig/oscommon/generator/test"
 	"github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -48,6 +48,14 @@ dataKey: token`)
 
 	criConfig = v1alpha1.CRIConfig{
 		Name: v1alpha1.CRINameContainerD,
+	}
+
+	criConfigWithMirrors = v1alpha1.CRIConfig{
+		Name: v1alpha1.CRINameContainerD,
+		Mirrors: []v1alpha1.CRIRegistryMirror{
+			{Registry: "eu.gcr.io", Endpoints: []string{"https://my-registry-proxy-1.some.where", "https://my-registry-proxy-1.some.where-else"}},
+			{Registry: "docker.io", Endpoints: []string{"https://my-registry-proxy-2.some.where"}},
+		},
 	}
 
 	osc = commongen.OperatingSystemConfig{
@@ -127,6 +135,20 @@ var _ = Describe("Garden Linux OS Generator Test", func() {
 			cloudInit, _, err := g.Generate(&osc)
 
 			Expect(err).NotTo(HaveOccurred())
+			Expect(cloudInit).To(Equal(expectedCloudInit))
+		})
+
+		It("[containerd] [bootstrap] should render correctly with registry mirrors", func() {
+			expectedCloudInit, err := testfiles.Files.ReadFile("containerd-bootstrap-with-mirrors")
+			Expect(err).NotTo(HaveOccurred())
+
+			osc.Bootstrap = true
+			osc.Object.Spec.Purpose = v1alpha1.OperatingSystemConfigPurposeProvision
+			osc.CRI = &criConfigWithMirrors
+			cloudInit, _, err := g.Generate(&osc)
+
+			Expect(err).NotTo(HaveOccurred())
+			println(string(cloudInit))
 			Expect(cloudInit).To(Equal(expectedCloudInit))
 		})
 

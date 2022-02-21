@@ -17,7 +17,12 @@ if [ ! -s /etc/containerd/config.toml ]; then
   mkdir -p /etc/containerd/
   containerd config default > /etc/containerd/config.toml
   chmod 0644 /etc/containerd/config.toml
+else
+  sed -ni '/{{ containerdRegistryMirrors .CRI "header" }}/q;p'
 fi
+cat <<EOF >> /etc/containerd/config.toml
+{{- containerdRegistryMirrors .CRI "full" }}
+EOF
 
 mkdir -p /etc/systemd/system/containerd.service.d
 cat <<EOF > /etc/systemd/system/containerd.service.d/11-exec_config.conf

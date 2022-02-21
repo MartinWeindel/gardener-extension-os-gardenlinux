@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/gardener/gardener-extension-os-gardenlinux/pkg/generator"
+	runtimelog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	extcontroller "github.com/gardener/gardener/extensions/pkg/controller"
 	controllercmd "github.com/gardener/gardener/extensions/pkg/controller/cmd"
@@ -42,7 +43,8 @@ var (
 func NewControllerCommand(ctx context.Context) *cobra.Command {
 	g := generator.CloudInitGenerator()
 	if g == nil {
-		controllercmd.LogErrAndExit(nil, "Could not create Generator")
+		runtimelog.Log.Error(nil, "Could not create Generator")
+		os.Exit(1)
 	}
 
 	var (
@@ -75,7 +77,8 @@ func NewControllerCommand(ctx context.Context) *cobra.Command {
 
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := aggOption.Complete(); err != nil {
-				controllercmd.LogErrAndExit(err, "Error completing options")
+				runtimelog.Log.Error(err, "Error completing options")
+				os.Exit(1)
 			}
 
 			// TODO: Make these flags configurable via command line parameters or component config file.
@@ -91,11 +94,13 @@ func NewControllerCommand(ctx context.Context) *cobra.Command {
 
 			mgr, err := manager.New(restOpts.Completed().Config, completedMgrOpts)
 			if err != nil {
-				controllercmd.LogErrAndExit(err, "Could not instantiate manager")
+				runtimelog.Log.Error(err, "Could not instantiate manager")
+				os.Exit(1)
 			}
 
 			if err := extcontroller.AddToScheme(mgr.GetScheme()); err != nil {
-				controllercmd.LogErrAndExit(err, "Could not update manager scheme")
+				runtimelog.Log.Error(err, "Could not update manager scheme")
+				os.Exit(1)
 			}
 
 			ctrlOpts.Completed().Apply(&oscommon.DefaultAddOptions.Controller)
@@ -103,11 +108,13 @@ func NewControllerCommand(ctx context.Context) *cobra.Command {
 			reconcileOpts.Completed().Apply(&oscommon.DefaultAddOptions.IgnoreOperationAnnotation)
 
 			if err := controllerSwitches.Completed().AddToManager(mgr); err != nil {
-				controllercmd.LogErrAndExit(err, "Could not add controller to manager")
+				runtimelog.Log.Error(err, "Could not add controller to manager")
+				os.Exit(1)
 			}
 
 			if err := mgr.Start(ctx); err != nil {
-				controllercmd.LogErrAndExit(err, "Error running manager")
+				runtimelog.Log.Error(err, "Error running manager")
+				os.Exit(1)
 			}
 		},
 	}
